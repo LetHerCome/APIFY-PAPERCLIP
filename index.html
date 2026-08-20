@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#08090d" />
+<title>SCOTECA — Anticaveritaseum Online Demo v0.4</title>
+<style>
+:root{
+  --bg:#08090d;--panel:#11141a;--panel2:#171b22;--text:#f4f2ee;--muted:#969ba5;
+  --line:rgba(255,255,255,.09);--gold:#d8b46a;--ghost:#79d9e7;--violet:#8b78d8;--danger:#e36c6c;--good:#86c79b;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#08090d;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overscroll-behavior:none}
+button{font:inherit;color:inherit}
+#app{position:fixed;inset:0;background:radial-gradient(circle at 50% -10%,#151822 0,#08090d 48%,#050609 100%)}
+.stage{position:absolute;inset:0;overflow:hidden;touch-action:none}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+
+/* Minimal in-game HUD */
+.hud{position:absolute;inset:0;z-index:10;pointer-events:none;padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
+.topline{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:10px}
+.identity{display:flex;align-items:center;gap:9px;min-width:0}
+.avatar{width:34px;height:34px;border-radius:9px;background:linear-gradient(145deg,#26221e,#121519);border:1px solid var(--line);box-shadow:0 8px 20px rgba(0,0,0,.25);display:grid;place-items:center;overflow:hidden;flex:0 0 auto}
+.avatar .pxcap{width:22px;height:22px;position:relative;image-rendering:pixelated}
+.avatar .pxcap:before{content:"";position:absolute;left:6px;top:3px;width:10px;height:7px;background:#4b3326;box-shadow:-3px 2px #4b3326,3px 2px #4b3326,0 7px #d1a17d,-3px 9px #d1a17d,3px 9px #d1a17d,0 12px #181a1c,-4px 14px #7d2431,4px 14px #7d2431}
+.idcopy{min-width:0}.idcopy b{display:block;font-size:12px;letter-spacing:.05em;white-space:nowrap}.idcopy span{display:block;font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap}
+.timer{font-variant-numeric:tabular-nums;font-size:15px;font-weight:760;letter-spacing:.08em;padding-top:3px;text-shadow:0 1px 8px #000}
+.runmeta{text-align:right;padding-top:2px}.runmeta b{display:block;font-size:12px}.runmeta span{display:block;color:var(--muted);font-size:8px;margin-top:2px;letter-spacing:.08em}
+.bars{position:absolute;left:calc(12px + env(safe-area-inset-left));right:calc(12px + env(safe-area-inset-right));top:calc(53px + env(safe-area-inset-top));display:grid;gap:5px}
+.bar{height:4px;background:rgba(255,255,255,.08);overflow:hidden;border-radius:99px}.bar i{height:100%;display:block;width:100%;transform-origin:left center;transition:width .1s linear}.hp i{background:#cc665f}.xp i{background:linear-gradient(90deg,#5fc6d9,#9181d5)}
+
+.special-wrap{position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));z-index:14;pointer-events:auto}
+.special{width:72px;height:72px;border-radius:22px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(155deg,rgba(25,30,38,.96),rgba(12,14,19,.96));box-shadow:0 14px 35px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.04);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;overflow:hidden;touch-action:manipulation}
+.special:active{transform:scale(.97)}.special.cooldown{opacity:.56}.special .ico{font-size:22px;line-height:1}.special b{font-size:8px;letter-spacing:.07em}.special small{font-size:8px;color:var(--ghost);font-weight:750}.special .coolfill{position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(121,217,231,.11);pointer-events:none}
+
+.touch-hint{position:absolute;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.42);letter-spacing:.08em;transition:opacity .45s;white-space:nowrap}.touch-hint.hide{opacity:0}
+.toast{position:absolute;left:50%;top:calc(72px + env(safe-area-inset-top));transform:translate(-50%,-6px);z-index:30;background:rgba(12,14,18,.90);border:1px solid var(--line);border-radius:12px;padding:8px 11px;color:#e9e7e3;font-size:10px;font-weight:700;letter-spacing:.02em;opacity:0;transition:.2s;pointer-events:none;max-width:min(82vw,430px);text-align:center;backdrop-filter:blur(8px)}.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.overlay{position:absolute;inset:0;z-index:40;background:rgba(6,7,10,.64);backdrop-filter:blur(12px);display:none;align-items:flex-end;justify-content:center;padding:12px max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}.overlay.show{display:flex}
+.sheet{width:min(650px,100%);max-height:90dvh;overflow:auto;background:linear-gradient(180deg,rgba(24,27,34,.98),rgba(13,15,20,.99));border:1px solid var(--line);border-radius:26px;box-shadow:0 30px 90px rgba(0,0,0,.55)}
+.start-sheet{padding:22px 20px 20px}.handle{width:38px;height:4px;border-radius:99px;background:rgba(255,255,255,.13);margin:0 auto 20px}.kicker{font-size:9px;letter-spacing:.16em;color:var(--ghost);font-weight:800}.start-title{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:8px}.start-title h1{font-size:32px;line-height:1;margin:0;letter-spacing:-.02em}.version{font-size:9px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 8px}
+.hero-card{margin-top:18px;border:1px solid var(--line);border-radius:20px;padding:16px;background:rgba(255,255,255,.025);display:grid;grid-template-columns:78px 1fr;gap:14px;align-items:center}.hero-pixel{height:92px;border-radius:16px;background:radial-gradient(circle at 50% 30%,rgba(121,217,231,.13),rgba(0,0,0,.12));border:1px solid var(--line);display:grid;place-items:center}.captain-big{width:52px;height:68px;position:relative;image-rendering:pixelated;filter:drop-shadow(0 8px 8px rgba(0,0,0,.35))}.captain-big:before{content:"";position:absolute;left:17px;top:7px;width:18px;height:10px;background:#4b3326;box-shadow:-5px 3px #4b3326,5px 3px #4b3326,-8px 8px #4b3326,8px 8px #4b3326,0 10px #d0a17d,-5px 15px #d0a17d,5px 15px #d0a17d,-3px 18px #191919,3px 18px #191919,0 22px #bb795d,-10px 28px #11151a,10px 28px #11151a,0 30px #742b37,-10px 38px #742b37,10px 38px #742b37,-15px 44px #121419,15px 44px #121419,-7px 53px #101216,7px 53px #101216}
+.hero-card h2{font-size:20px;margin:0}.hero-card p{margin:5px 0 0;font-size:11px;line-height:1.45;color:var(--muted)}.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}.tags span{font-size:8px;padding:5px 7px;border-radius:999px;border:1px solid var(--line);color:#c6c9cf;background:rgba(255,255,255,.025)}
+.start-note{margin:14px 2px 17px;color:#9da2ab;font-size:11px;line-height:1.45}.primary{width:100%;border:0;border-radius:15px;padding:14px 16px;background:#f0ece3;color:#121418;font-weight:850;letter-spacing:.02em;box-shadow:0 10px 25px rgba(0,0,0,.22)}.primary:active{transform:translateY(1px)}
+
+.level-sheet{padding:18px}.level-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:12px}.level-head h2{font-size:22px;margin:2px 0 0}.level-head span{font-size:9px;color:var(--muted)}
+.upgrades{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.upgrade{border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.025);padding:14px;text-align:left;min-height:142px}.upgrade:active{transform:scale(.985);background:rgba(255,255,255,.05)}.upgrade .uico{font-size:20px}.upgrade h3{font-size:13px;margin:10px 0 5px}.upgrade p{font-size:10px;line-height:1.4;color:var(--muted);margin:0}.upgrade small{display:block;margin-top:10px;font-size:8px;color:var(--ghost);font-weight:800;letter-spacing:.08em}
+
+.end-sheet{padding:20px;text-align:center}.end-sheet h2{font-size:27px;margin:8px 0}.end-sheet p{font-size:11px;color:var(--muted);margin:0}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:17px 0}.summary div{border:1px solid var(--line);border-radius:14px;padding:11px;background:rgba(255,255,255,.022)}.summary span{display:block;font-size:8px;color:var(--muted);letter-spacing:.08em}.summary b{display:block;font-size:18px;margin-top:4px}
+
+
+.hero-card{grid-template-columns:108px 1fr;align-items:stretch;padding:10px;overflow:hidden}
+.hero-art{min-height:154px;border-radius:16px;overflow:hidden;border:1px solid rgba(216,180,106,.22);background:#090b10;position:relative}
+.hero-art:after{content:"";position:absolute;inset:auto 0 0;height:42%;background:linear-gradient(transparent,rgba(8,9,13,.72));pointer-events:none}
+.hero-art img{width:100%;height:100%;object-fit:cover;object-position:50% 21%;display:block}
+.start-sheet{padding-top:18px}
+.start-title h1{max-width:420px}
+.start-note{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.primary{background:linear-gradient(180deg,#efe9dd,#d6ccb8);color:#111319}
+@media (max-width:560px){.hero-card{grid-template-columns:104px 1fr}.hero-art{min-height:148px}.hero-card p{font-size:10px}}
+
+@media (min-width:760px){.overlay{align-items:center;padding:22px}.start-sheet{padding:28px}.hero-card{grid-template-columns:110px 1fr}.hero-pixel{height:120px}.upgrades{gap:12px}.upgrade{padding:17px;min-height:155px}}
+@media (max-width:560px){.upgrades{grid-template-columns:1fr}.upgrade{min-height:0;padding:12px;display:grid;grid-template-columns:30px 1fr;column-gap:8px}.upgrade .uico{grid-row:1/4}.upgrade h3{margin:1px 0 4px}.upgrade p{font-size:9.5px}.upgrade small{margin-top:6px}.level-sheet{max-height:83dvh}.start-title h1{font-size:29px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage" class="stage">
+    <canvas id="game"></canvas>
+    <div class="hud">
+      <div class="topline">
+        <div class="identity"><div class="avatar"><div class="pxcap"></div></div><div class="idcopy"><b>IL CAPITANO</b><span>Summoner · Lv <i id="level">1</i></span></div></div>
+        <div id="timer" class="timer">00:00</div>
+        <div class="runmeta"><b id="kills">0</b><span>CADUTI · VARCO I</span></div>
+      </div>
+      <div class="bars"><div class="bar hp"><i id="hpFill"></i></div><div class="bar xp"><i id="xpFill"></i></div></div>
+      <div id="touchHint" class="touch-hint">TOCCA E TRASCINA PER MUOVERTI</div>
+    </div>
+    <div class="special-wrap"><button id="specialBtn" class="special"><div class="coolfill" id="coolFill"></div><span class="ico">⚓</span><b>ADUNATA</b><small id="specialCd">PRONTA</small></button></div>
+    <div id="toast" class="toast"></div>
+
+    <div id="startOverlay" class="overlay show">
+      <section class="sheet start-sheet">
+        <div class="handle"></div>
+        <div class="kicker">SCOTECA · ANTICAVERITASEUM</div>
+        <div class="start-title"><h1>Una discesa. Una ciurma.</h1><span class="version">DEMO 0.3</span></div>
+        <div class="hero-card">
+          <div class="hero-art" style="display:grid;place-items:center"><div style="font-size:40px">⚓</div></div>
+          <div><h2>Il Capitano</h2><p>Capitano della nave perduta. Combatte guidando la <b>ciurma spettrale</b>: ogni evocazione aumenta la sua presenza sul campo e trasforma la run in un esercito di morti.</p><div class="tags"><span>SUMMONER</span><span>SPETTRI</span><span>CAPITANO DELLA NAVE</span></div></div>
+        </div>
+        <div class="start-note">Mobile: appoggia il dito sul campo e trascina. Il movimento segue il gesto senza joystick visibile. PC: WASD / frecce.</div>
+        <button id="startBtn" type="button" class="primary" onclick="window.SCOTECA_START && window.SCOTECA_START(event)">Inizia la discesa</button>
+      </section>
+    </div>
+
+    <div id="levelOverlay" class="overlay">
+      <section class="sheet level-sheet">
+        <div class="handle"></div>
+        <div class="level-head"><div><div class="kicker">NUOVO LIVELLO</div><h2>Scegli cosa cambia la run</h2></div><span>1 di 3</span></div>
+        <div id="upgradeChoices" class="upgrades"></div>
+      </section>
+    </div>
+
+    <div id="endOverlay" class="overlay">
+      <section class="sheet end-sheet">
+        <div class="handle"></div>
+        <div class="kicker">RUN CONCLUSA</div>
+        <h2 id="endTitle">La rotta continua.</h2>
+        <p id="endCopy">La ciurma si ritira oltre il varco. Per ora.</p>
+        <div class="summary"><div><span>TEMPO</span><b id="endTime">0:00</b></div><div><span>KILL</span><b id="endKills">0</b></div><div><span>LIVELLO</span><b id="endLevel">1</b></div></div>
+        <button id="restartBtn" type="button" class="primary" onclick="window.SCOTECA_START && window.SCOTECA_START(event)">Nuova run</button>
+      </section>
+    </div>
+  </div>
+</div>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const canvas=$('game'),ctx=canvas.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=false;
+const stage=$('stage');
+const UI={start:$('startOverlay'),level:$('levelOverlay'),end:$('endOverlay'),startBtn:$('startBtn'),restartBtn:$('restartBtn'),choices:$('upgradeChoices'),timer:$('timer'),kills:$('kills'),levelNum:$('level'),hp:$('hpFill'),xp:$('xpFill'),special:$('specialBtn'),specialCd:$('specialCd'),cool:$('coolFill'),toast:$('toast'),hint:$('touchHint'),endTitle:$('endTitle'),endCopy:$('endCopy'),endTime:$('endTime'),endKills:$('endKills'),endLevel:$('endLevel'),hint:$('touchHint')};
+const TAU=Math.PI*2, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), rand=(a,b=0)=>b+Math.random()*(a-b), d2=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+let W=480,H=270,scaleFactor=2;
+function resize(){const r=stage.getBoundingClientRect();scaleFactor=Math.max(1.65,Math.min(2.4,window.devicePixelRatio||2));canvas.width=Math.max(320,Math.floor(r.width/scaleFactor));canvas.height=Math.max(220,Math.floor(r.height/scaleFactor));W=canvas.width;H=canvas.height;ctx.imageSmoothingEnabled=false;if(player){player.x=clamp(player.x,14,W-14);player.y=clamp(player.y,18,H-14)}}
+addEventListener('resize',resize,{passive:true});resize();
+
+let state='menu',last=performance.now(),elapsed=0,spawnClock=0,basicClock=0,bossSpawned=false,screenShake=0;
+let player=null,enemies=[],shots=[],gems=[],particles=[],floaters=[],crew=[];
+let level=1,xp=0,nextXp=18,kills=0,pendingLevels=0;
+let stats;
+const keys={};
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space')useSpecial()});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+// Touch steering: invisible relative pad. The first touch establishes an anchor; drag direction sets desired velocity.
+const touch={active:false,id:null,ax:0,ay:0,x:0,y:0};
+function pointerDown(e){if(state!=='playing')return;if(e.target.closest&&e.target.closest('button'))return;touch.active=true;touch.id=e.pointerId;touch.ax=e.clientX;touch.ay=e.clientY;touch.x=e.clientX;touch.y=e.clientY;stage.setPointerCapture?.(e.pointerId);UI.hint.classList.add('hide');e.preventDefault()}
+function pointerMove(e){if(!touch.active||e.pointerId!==touch.id)return;touch.x=e.clientX;touch.y=e.clientY;e.preventDefault()}
+function pointerEnd(e){if(e.pointerId!==touch.id)return;touch.active=false;touch.id=null;e.preventDefault()}
+stage.addEventListener('pointerdown',pointerDown,{passive:false});stage.addEventListener('pointermove',pointerMove,{passive:false});stage.addEventListener('pointerup',pointerEnd,{passive:false});stage.addEventListener('pointercancel',pointerEnd,{passive:false});
+
+function baseStats(){return{maxHp:100,hp:100,speed:78,damage:10,fireRate:1.18,projSpeed:180,crit:.05,critMult:1.8,crew:2,crewDamage:8,crewRate:1.05,crewProjSpeed:165,magnet:38,armor:0,lifesteal:0,splash:0,specialCd:16,specialTimer:0,tempCrew:0}}
+const upgrades=[
+ {icon:'👻',name:'Un Uomo in Più',desc:'+1 marinaio spettrale permanente. La build del Capitano parte da qui.',tag:'CIURMA',apply:()=>stats.crew++},
+ {icon:'⚓',name:'Adunata Migliorata',desc:'Adunata richiama +2 spettri aggiuntivi.',tag:'SPECIAL',apply:()=>stats.specialBonus=(stats.specialBonus||0)+2},
+ {icon:'🏴',name:'Ordine di Fuoco',desc:'+24% danno dei proiettili della ciurma.',tag:'SUMMON DAMAGE',apply:()=>stats.crewDamage*=1.24},
+ {icon:'🌫️',name:'Nebbia di Bordo',desc:'La ciurma attacca il 16% più rapidamente.',tag:'SUMMON SPEED',apply:()=>stats.crewRate=Math.max(.28,stats.crewRate*.84)},
+ {icon:'💀',name:'Pallottole Maledette',desc:'I colpi spettrali esplodono leggermente all’impatto.',tag:'AOE',apply:()=>stats.splash+=10},
+ {icon:'🔱',name:'Presenza del Capitano',desc:'+18% danno dell’attacco personale.',tag:'CAPTAIN',apply:()=>stats.damage*=1.18},
+ {icon:'🌊',name:'Gambe da Ponte',desc:'+13% velocità di movimento.',tag:'MOVE',apply:()=>stats.speed*=1.13},
+ {icon:'🧲',name:'Richiamo dei Morti',desc:'+20 raggio di raccolta XP.',tag:'UTILITY',apply:()=>stats.magnet+=20},
+ {icon:'🩸',name:'Patto della Ciurma',desc:'Recuperi l’1.5% del danno inflitto.',tag:'SUSTAIN',apply:()=>stats.lifesteal+=.015},
+ {icon:'🛡️',name:'Cappotto Cerato',desc:'-2 danni ricevuti da ogni contatto.',tag:'DEFENSE',apply:()=>stats.armor+=2},
+ {icon:'❤️',name:'Rum di Riserva',desc:'+22 HP massimi e cura 22 HP.',tag:'SURVIVE',apply:()=>{stats.maxHp+=22;stats.hp=Math.min(stats.maxHp,stats.hp+22)}},
+ {icon:'👑',name:'Nessuno Lascia la Nave',desc:'Adunata recupera il 20% più in fretta.',tag:'SPECIAL',apply:()=>stats.specialCd=Math.max(6,stats.specialCd*.8)}
+];
+
+function reset(){stats=baseStats();player={x:W/2,y:H*.55,r:7,vx:0,vy:0,dir:1,hitCd:0};enemies=[];shots=[];gems=[];particles=[];floaters=[];crew=[];elapsed=0;spawnClock=.65;basicClock=.45;bossSpawned=false;screenShake=0;level=1;xp=0;nextXp=18;kills=0;pendingLevels=0;touch.active=false;syncCrew();updateUI()}
+function start(){
+  try{
+    reset();
+    state='playing';
+    UI.start && UI.start.classList.remove('show');
+    UI.end && UI.end.classList.remove('show');
+    UI.level && UI.level.classList.remove('show');
+    UI.hint && UI.hint.classList.remove('hide');
+    last=performance.now();
+    toast('Il varco dell’Anticaveritaseum si è aperto.');
+    return true;
+  }catch(err){
+    console.error('SCOTECA start error',err);
+    if(UI.start) UI.start.classList.remove('show');
+    state='playing';
+    last=performance.now();
+    return false;
+  }
+}
+window.SCOTECA_START=function(e){if(e){e.preventDefault?.();e.stopPropagation?.();}return start();};
+function bindStartButton(btn){
+  if(!btn) return;
+  btn.style.touchAction='manipulation';
+  const fire=e=>window.SCOTECA_START(e);
+  btn.addEventListener('pointerup',fire,{passive:false});
+  btn.addEventListener('touchend',fire,{passive:false});
+}
+bindStartButton(UI.startBtn);bindStartButton(UI.restartBtn);
+
+function syncCrew(){const n=stats.crew+stats.tempCrew;while(crew.length<n)crew.push({phase:Math.random()*TAU,cd:rand(.9,.1),bob:rand(TAU)});crew.length=n}
+function nearest(from){let best=null,bd=1e9;for(const e of enemies){if(e.dead)continue;const d=(e.x-from.x)**2+(e.y-from.y)**2;if(d<bd){bd=d;best=e}}return best}
+function spawnEnemy(forceBoss=false){const pad=18,side=Math.floor(Math.random()*4);let x,y;if(side===0){x=rand(W);y=-pad}else if(side===1){x=W+pad;y=rand(H)}else if(side===2){x=rand(W);y=H+pad}else{x=-pad;y=rand(H)}
+ let type='drifter',hp=18+elapsed*.15,speed=20+elapsed*.035,r=6,dmg=9,val=3;
+ if(forceBoss){type='shino';hp=620+elapsed*2.1;speed=13;r=18;dmg=20;val=75;toast('SHINO HA IMPUGNATO IL BAN HAMMER')}else{const q=Math.random();if(elapsed>18&&q<.18){type='rusher';hp*=.68;speed*=1.8;r=5;dmg=8;val=4}else if(elapsed>34&&q>.84){type='brute';hp*=2.8;speed*=.62;r=9;dmg=14;val=8}}
+ enemies.push({x,y,vx:0,vy:0,r,type,hp,maxHp:hp,speed,dmg,val,hitCd:0,flash:0,phase:rand(TAU)});
+}
+function shootFrom(x,y,target,damage,speed,kind='crew',crit=false){if(!target)return;const a=Math.atan2(target.y-y,target.x-x);shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:kind==='captain'?2.5:2,damage,life:1.8,kind,crit})}
+function captainShot(){const t=nearest(player);if(t)shootFrom(player.x+player.dir*5,player.y-1,t,stats.damage,stats.projSpeed,'captain',Math.random()<stats.crit)}
+function crewPositions(){return crew.map((g,i)=>{const row=i%3,ring=13+Math.floor(i/3)*5;const ang=g.phase+i*2.17;return{x:player.x+Math.cos(ang)*ring,y:player.y+Math.sin(ang)*ring*.58-6,bob:Math.sin(g.bob)*1.2}})}
+function updateCrew(dt){const pos=crewPositions();crew.forEach((g,i)=>{g.phase+=dt*(.45+(i%2)*.07);g.bob+=dt*2;g.cd-=dt;if(g.cd<=0){const t=nearest(pos[i]);if(t){g.cd=stats.crewRate*rand(1.12,.82);shootFrom(pos[i].x,pos[i].y,t,stats.crewDamage,stats.crewProjSpeed,'crew',Math.random()<stats.crit*.55)}}})}
+
+function deal(e,amount,x,y,crit=false){if(e.dead)return;const dealt=amount*(crit?stats.critMult:1);e.hp-=dealt;e.flash=.08;if(stats.lifesteal)stats.hp=Math.min(stats.maxHp,stats.hp+dealt*stats.lifesteal);floatText(x,y,(crit?'✦ ':'')+Math.round(dealt),crit?'#efd58f':'#d7edf1');if(stats.splash>0){for(const o of enemies){if(o!==e&&!o.dead&&d2(e,o)<stats.splash+10)o.hp-=dealt*.28}}if(e.hp<=0)kill(e)}
+function kill(e){if(e.dead)return;e.dead=true;kills++;const count=e.type==='shino'?28:e.type==='brute'?4:2;for(let i=0;i<count;i++)gems.push({x:e.x+rand(7,-7),y:e.y+rand(7,-7),vx:rand(24,-24),vy:rand(24,-24),v:e.type==='shino'?4:e.type==='brute'?2:1,r:e.type==='shino'?2.5:2});burst(e.x,e.y,e.type==='shino'?'#d66868':'#7bcbd7',e.type==='shino'?28:8,e.type==='shino'?62:34);screenShake=Math.max(screenShake,e.type==='shino'?7:2);if(e.type==='shino')toast('Il Ban Hammer è caduto. La rotta continua.')}
+function gainXp(v){xp+=v;while(xp>=nextXp){xp-=nextXp;level++;pendingLevels++;nextXp=Math.floor(16+level*9+level*level*.65)}if(pendingLevels&&state==='playing')openLevel()}
+function openLevel(){state='level';pendingLevels--;UI.level.classList.add('show');const pool=[...upgrades].sort(()=>Math.random()-.5).slice(0,3);UI.choices.innerHTML='';for(const u of pool){const b=document.createElement('button');b.className='upgrade';b.innerHTML=`<div class="uico">${u.icon}</div><h3>${u.name}</h3><p>${u.desc}</p><small>${u.tag}</small>`;b.onclick=()=>{u.apply();syncCrew();UI.level.classList.remove('show');state='playing';toast(u.name);if(pendingLevels)setTimeout(openLevel,90)};UI.choices.appendChild(b)}}
+function useSpecial(){if(state!=='playing'||stats.specialTimer>0)return;stats.specialTimer=stats.specialCd;const bonus=3+(stats.specialBonus||0);stats.tempCrew+=bonus;syncCrew();toast(`ADUNATA · +${bonus} SPETTRI`);burst(player.x,player.y,'#79d9e7',22,55);screenShake=4;navigator.vibrate?.([18,24,45]);setTimeout(()=>{if(stats){stats.tempCrew=Math.max(0,stats.tempCrew-bonus);syncCrew()}},7000)}
+UI.special.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();useSpecial()},{passive:false});
+
+function desiredMove(){let x=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),y=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);if(touch.active){const dx=touch.x-touch.ax,dy=touch.y-touch.ay,m=Math.hypot(dx,dy),dead=8,cap=58;if(m>dead){const power=clamp((m-dead)/(cap-dead),0,1);x+=dx/m*power;y+=dy/m*power}}
+ const m=Math.hypot(x,y);return m>1?{x:x/m,y:y/m}:{x,y}}
+function update(dt){if(state!=='playing')return;elapsed+=dt;stats.specialTimer=Math.max(0,stats.specialTimer-dt);player.hitCd=Math.max(0,player.hitCd-dt);
+ if(elapsed>=72&&!bossSpawned){bossSpawned=true;spawnEnemy(true)}if(elapsed>=100){endRun(true);return}
+ const mv=desiredMove(),tx=mv.x*stats.speed,ty=mv.y*stats.speed,follow=1-Math.exp(-dt*8.5);player.vx+=(tx-player.vx)*follow;player.vy+=(ty-player.vy)*follow;if(Math.abs(mv.x)<.02&&Math.abs(mv.y)<.02){const stop=1-Math.exp(-dt*10.5);player.vx+=(0-player.vx)*stop;player.vy+=(0-player.vy)*stop}player.x+=player.vx*dt;player.y+=player.vy*dt;if(Math.abs(player.vx)>2)player.dir=Math.sign(player.vx);player.x=clamp(player.x,11,W-11);player.y=clamp(player.y,15,H-11);
+ spawnClock-=dt;const interval=Math.max(.19,.68-elapsed*.0038);if(spawnClock<=0){spawnClock=interval;const n=elapsed>62?2:1;for(let i=0;i<n;i++)spawnEnemy()}
+ basicClock-=dt;if(basicClock<=0){basicClock=stats.fireRate;captainShot()}updateCrew(dt);
+ for(const e of enemies){if(e.dead)continue;e.flash=Math.max(0,e.flash-dt);e.hitCd=Math.max(0,e.hitCd-dt);const a=Math.atan2(player.y-e.y,player.x-e.x);e.vx=Math.cos(a)*e.speed;e.vy=Math.sin(a)*e.speed;e.x+=e.vx*dt;e.y+=e.vy*dt;if(d2(e,player)<e.r+player.r&&e.hitCd<=0&&player.hitCd<=0){const hit=Math.max(1,e.dmg-stats.armor);stats.hp-=hit;player.hitCd=.34;e.hitCd=.48;floatText(player.x,player.y-11,'-'+Math.round(hit),'#e97878');burst(player.x,player.y,'#d66868',9,42);screenShake=4;navigator.vibrate?.(18);if(stats.hp<=0){endRun(false);return}}}
+ for(const p of shots){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(p.life<=0)continue;for(const e of enemies){if(e.dead||p.dead)continue;if(d2(p,e)<p.r+e.r){p.dead=true;deal(e,p.damage,p.x,p.y,p.crit)}}}
+ for(const g of gems){g.vx*=.90;g.vy*=.90;g.x+=g.vx*dt;g.y+=g.vy*dt;const d=d2(g,player);if(d<stats.magnet){const pull=70+(stats.magnet-d)*5;g.x+=(player.x-g.x)/Math.max(d,1)*pull*dt;g.y+=(player.y-g.y)/Math.max(d,1)*pull*dt}if(d<player.r+4){g.dead=true;gainXp(g.v)}}
+ for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.94;p.vy*=.94}for(const f of floaters){f.life-=dt;f.y-=dt*10}
+ enemies=enemies.filter(e=>!e.dead);shots=shots.filter(p=>!p.dead&&p.life>0);gems=gems.filter(g=>!g.dead);particles=particles.filter(p=>p.life>0);floaters=floaters.filter(f=>f.life>0);screenShake=Math.max(0,screenShake-dt*25);updateUI()}
+function endRun(win){state='end';touch.active=false;UI.end.classList.add('show');UI.endTitle.textContent=win?'L’Anticaveritaseum arretra.':'La ciurma è stata inghiottita.';UI.endCopy.textContent=win?'Il Capitano ha respinto il varco. La prossima discesa sarà più profonda.':'Questa build non ha retto all’Anticaveritaseum. Cambia rotta e riprova.';UI.endTime.textContent=formatTime(elapsed);UI.endKills.textContent=kills;UI.endLevel.textContent=level}
+
+function px(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+function drawFloor(){ctx.fillStyle='#090c10';ctx.fillRect(0,0,W,H);const tile=24;for(let y=0;y<H;y+=tile){for(let x=0;x<W;x+=tile){const odd=((x/tile|0)+(y/tile|0))%2;ctx.fillStyle=odd?'#0d1116':'#0b0f14';ctx.fillRect(x,y,tile,tile);ctx.fillStyle='rgba(255,255,255,.018)';ctx.fillRect(x,y+tile-1,tile,1)}}
+ // rovine dell’Anticaveritaseum e foschia spettrale
+ ctx.fillStyle='rgba(124,92,165,.035)';for(let i=0;i<6;i++){const yy=(i*53+(elapsed*2)%53)%H;ctx.fillRect(0,yy,W,1)}
+}
+function drawCaptain(p){const x=Math.round(p.x),y=Math.round(p.y),flip=p.dir<0?-1:1;ctx.save();ctx.translate(x,y);ctx.scale(flip,1);px(-5,-12,10,5,'#4a3428');px(-7,-9,14,4,'#4a3428');px(-4,-7,8,6,'#c99a78');px(-4,-4,8,2,'#1b1b1d');px(-5,-2,10,3,'#b7775d');px(-7,1,14,8,'#702936');px(-10,2,3,7,'#181b20');px(7,2,3,7,'#181b20');px(-6,9,5,6,'#12151a');px(1,9,5,6,'#12151a');px(-8,-1,2,11,'#ba8c4d');px(-9,-2,1,14,'#886d40');ctx.restore();
+ if(p.hitCd>0&&Math.floor(p.hitCd*40)%2===0){ctx.strokeStyle='#f3b3a6';ctx.strokeRect(x-9,y-14,18,30)}}
+function drawGhost(x,y,bob=0){x=Math.round(x);y=Math.round(y+bob);px(x-4,y-6,8,7,'#81d8e0');px(x-5,y-4,10,5,'#81d8e0');px(x-3,y+1,6,3,'#5ab8c4');px(x-3,y-3,1,1,'#11252c');px(x+2,y-3,1,1,'#11252c');px(x-4,y+4,2,2,'rgba(121,217,231,.42)');px(x+2,y+4,2,2,'rgba(121,217,231,.42)')}
+function drawEnemy(e){const x=Math.round(e.x),y=Math.round(e.y);const flash=e.flash>0?'#f1d8d3':null;if(e.type==='shino'){px(x-10,y-12,20,22,flash||'#3e3446');px(x-7,y-8,14,8,'#b98c72');px(x-5,y-5,3,2,'#18171a');px(x+2,y-5,3,2,'#18171a');px(x-8,y+10,6,5,'#242129');px(x+2,y+10,6,5,'#242129');/* Ban Hammer */px(x+12,y-12,3,25,'#8d6b3d');px(x+7,y-17,13,7,'#c1a15d');px(x+9,y-19,9,3,'#e0c47d');return}const c=e.type==='brute'?'#5f5963':e.type==='rusher'?'#78504c':'#3e4b54';const s=e.type==='brute'?8:e.type==='rusher'?5:6;px(x-s,y-s,s*2,s*2,flash||c);px(x-s+1,y-s-1,s*2-2,2,e.type==='rusher'?'#b36e63':'#667782');px(x-3,y-2,2,2,'#cbd7d9');px(x+1,y-2,2,2,'#cbd7d9')}
+function render(){drawFloor();ctx.save();if(screenShake>0)ctx.translate(rand(screenShake,-screenShake),rand(screenShake,-screenShake));
+ for(const g of gems){px(g.x-1,g.y-1,3,3,'#7dd5de');px(g.x,g.y-2,1,1,'#d6fbff')}
+ for(const e of enemies)drawEnemy(e);
+ for(const p of shots){if(p.kind==='crew'){px(p.x-2,p.y-1,4,3,'#7ee0eb');px(p.x-1,p.y-2,2,5,'rgba(121,217,231,.45)')}else{px(p.x-2,p.y-1,4,2,p.crit?'#ead48a':'#c9ae6c')}}
+ const cp=crewPositions();cp.forEach((p,i)=>drawGhost(p.x,p.y,p.bob));drawCaptain(player||{x:W/2,y:H/2,dir:1,hitCd:0});
+ for(const p of particles){ctx.globalAlpha=clamp(p.life/p.max,0,1);px(p.x,p.y,p.s,p.s,p.c)}ctx.globalAlpha=1;
+ for(const f of floaters){ctx.globalAlpha=clamp(f.life/.65,0,1);ctx.font='bold 6px ui-monospace,monospace';ctx.textAlign='center';ctx.fillStyle=f.c;ctx.fillText(f.t,Math.round(f.x),Math.round(f.y))}ctx.globalAlpha=1;ctx.restore();
+ // boss health strip, intentionally quiet
+ const boss=enemies.find(e=>e.type==='shino'&&!e.dead);if(boss){ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(W*.2,H-14,W*.6,4);ctx.fillStyle='#9b4f57';ctx.fillRect(W*.2,H-14,W*.6*clamp(boss.hp/boss.maxHp,0,1),4);ctx.font='bold 6px ui-monospace,monospace';ctx.fillStyle='#c7b6b6';ctx.textAlign='center';ctx.fillText('SHINO · BAN HAMMER',W/2,H-18)}
+}
+function burst(x,y,c,n=8,speed=40){for(let i=0;i<n;i++){const a=rand(TAU),v=rand(speed,speed*.35),life=rand(.6,.25);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,max:life,s:rand(2,.7),c})}}
+function floatText(x,y,t,c){floaters.push({x,y,t,c,life:.65})}
+let toastTimer;function toast(t){UI.toast.textContent=t;UI.toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>UI.toast.classList.remove('show'),1500)}
+function formatTime(s){s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function updateUI(){UI.timer.textContent=formatTime(elapsed);UI.kills.textContent=kills;UI.levelNum.textContent=level;UI.hp.style.width=(clamp(stats?.hp/(stats?.maxHp||1),0,1)*100)+'%';UI.xp.style.width=(clamp(xp/nextXp,0,1)*100)+'%';if(stats){const ready=stats.specialTimer<=0;UI.special.classList.toggle('cooldown',!ready);UI.specialCd.textContent=ready?'PRONTA':stats.specialTimer.toFixed(1)+'s';UI.cool.style.height=(stats.specialTimer/stats.specialCd*100)+'%'}}
+function loop(now){const dt=Math.min(.033,(now-last)/1000||0);last=now;update(dt);render();requestAnimationFrame(loop)}
+reset();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
