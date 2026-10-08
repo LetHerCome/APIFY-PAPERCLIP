@@ -1,8 +1,7 @@
 import { Actor } from 'apify';
-import { calculateRisk, cleanCompany, escapeOpenFda } from './helpers.js';
+import { buildFdaSearchUrl, calculateRisk, matchesEpaFacility, uniqueCompanies } from './helpers.js';
 
 const FDA_TYPES = ['food', 'drug', 'device'];
-const FDA_BASE = 'https://api.fda.gov';
 const EPA_URL = 'https://echodata.epa.gov/echo/echo_rest_services.get_facilities';
 const USER_AGENT = 'SupplierComplianceScreen/0.1 (Apify public-data research actor)';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -52,9 +51,7 @@ async function getFdaRecords(company, lookbackYears, maxMatches, errors) {
     cutoff.setUTCFullYear(cutoff.getUTCFullYear() - lookbackYears);
     const matches = [];
     for (const category of FDA_TYPES) {
-        const url = new URL(`${FDA_BASE}/${category}/enforcement.json`);
-        url.searchParams.set('search', `recalling_firm:"${escapeOpenFda(company)}"`);
-        url.searchParams.set('limit', String(Math.min(maxMatches, 10)));
+        const url = buildFdaSearchUrl(category, company, lookbackYears, maxMatches);
         try {
             const result = await fetchJson(url);
             if (result.noResults) continue;
@@ -76,7 +73,7 @@ async function getFdaRecords(company, lookbackYears, maxMatches, errors) {
         }
         await sleep(350);
     }
-    return matches.slice(0, maxMatches);
+    return matches.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, maxMatches);
 }
 
 async function getEpaFacilities(company, state, errors) {
@@ -92,7 +89,7 @@ async function getEpaFacilities(company, state, errors) {
         const result = data.Results || {};
         if (result.Error?.ErrorMessage) throw new Error(result.Error.ErrorMessage);
         if (result.Message !== 'Success') throw new Error(result.Message || 'EPA returned an unknown response');
-        return (result.Facilities || []).slice(0, 10).map((facility) => ({
+        return (result.Facilities || []).filter((facility) => matchesEpaFacility(company, facility.FacName)).slice(0, 10).map((facility) => ({
             registry_id: facility.RegistryID || null,
             name: facility.FacName || null,
             city: facility.FacCity || null,
@@ -114,7 +111,7 @@ async function getEpaFacilities(company, state, errors) {
 await Actor.init();
 try {
     const input = await Actor.getInput() || {};
-    const companies = [...new Set((input.companies || []).map(cleanCompany).filter(Boolean))];
+    const companies = uniqueCompanies(input.companies || []);
     if (companies.length < 1 || companies.length > 3) throw new Error('Provide between 1 and 3 non-empty company names.');
     const sources = input.sources || ['fda', 'epa'];
     if (!Array.isArray(sources) || sources.some((source) => !['fda', 'epa'].includes(source))) {

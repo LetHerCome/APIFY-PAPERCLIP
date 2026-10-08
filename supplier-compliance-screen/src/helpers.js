@@ -2,8 +2,50 @@ export function cleanCompany(value) {
     return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
 }
 
+const EPA_NAME_IGNORED_TOKENS = new Set([
+    'a', 'an', 'and', 'co', 'company', 'corp', 'corporation', 'group', 'inc',
+    'incorporated', 'limited', 'llc', 'lp', 'ltd', 'the',
+]);
+
+function nameTokens(value) {
+    return cleanCompany(value)
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .match(/[a-z0-9]+/g)?.filter((token) => token.length > 1 && !EPA_NAME_IGNORED_TOKENS.has(token)) || [];
+}
+
+export function matchesEpaFacility(company, facilityName) {
+    const companyTokens = [...new Set(nameTokens(company))];
+    const facilityTokens = new Set(nameTokens(facilityName));
+    return companyTokens.length > 0 && companyTokens.every((token) => facilityTokens.has(token));
+}
+
+export function uniqueCompanies(values) {
+    const seen = new Set();
+    return values.map(cleanCompany).filter((company) => {
+        const key = company.toLocaleLowerCase('en-US');
+        if (!company || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 export function escapeOpenFda(value) {
     return value.replace(/[\\"()]/g, (character) => `\\${character}`);
+}
+
+export function buildFdaSearchUrl(category, company, lookbackYears, maxMatches, now = new Date()) {
+    const from = new Date(now);
+    from.setUTCFullYear(from.getUTCFullYear() - lookbackYears);
+    const dateRange = [from, now]
+        .map((date) => date.toISOString().slice(0, 10).replaceAll('-', ''))
+        .join(' TO ');
+    const url = new URL(`https://api.fda.gov/${category}/enforcement.json`);
+    url.searchParams.set('search', `recalling_firm:"${escapeOpenFda(company)}" AND report_date:[${dateRange}]`);
+    url.searchParams.set('limit', String(Math.min(maxMatches, 10)));
+    url.searchParams.set('sort', 'report_date:desc');
+    return url;
 }
 
 export function calculateRisk(fda, epa) {
