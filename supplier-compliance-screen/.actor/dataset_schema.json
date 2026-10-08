@@ -1,0 +1,41 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "company": { "type": "string", "title": "Company" },
+      "query": { "type": "object" },
+      "fda": { "type": "object" },
+      "epa": { "type": "object" },
+      "riskScore": { "type": "integer", "minimum": 0, "maximum": 100 },
+      "riskBasis": { "type": "array", "items": { "type": "string" } },
+      "sourcesChecked": { "type": "array", "items": { "type": "string" } },
+      "fetchedAt": { "type": "string", "format": "date-time" },
+      "errors": { "type": "array", "items": { "type": "object" } },
+      "disclaimer": { "type": "string" }
+    },
+    "required": ["company", "query", "fda", "epa", "riskScore", "riskBasis", "sourcesChecked", "fetchedAt", "errors", "disclaimer"]
+  },
+  "views": {
+    "overview": {
+      "title": "Supplier compliance screen",
+      "transformation": {
+        "fields": ["company", "riskScore", "riskBasis", "fda.count", "epa.count", "sourcesChecked", "fetchedAt", "errors"]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "company": { "label": "Company", "format": "text" },
+          "riskScore": { "label": "Screening signal (0–100)", "format": "number" },
+          "riskBasis": { "label": "Signal basis", "format": "text" },
+          "fda.count": { "label": "FDA records", "format": "number" },
+          "epa.count": { "label": "EPA facilities", "format": "number" },
+          "sourcesChecked": { "label": "Sources checked", "format": "text" },
+          "fetchedAt": { "label": "Fetched at", "format": "date" },
+          "errors": { "label": "Source errors", "format": "text" }
+        }
+      }
+    }
+  }
+}

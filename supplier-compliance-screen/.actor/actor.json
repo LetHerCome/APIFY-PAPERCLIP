@@ -1,0 +1,15 @@
+{
+  "actorSpecification": 1,
+  "name": "supplier-compliance-screen",
+  "title": "Supplier Compliance Screen (FDA + EPA ECHO)",
+  "description": "Checks supplier names against public FDA enforcement and EPA ECHO facility records.",
+  "version": "0.1",
+  "meta": {
+    "templateId": "javascript-crawlee-cheerio"
+  },
+  "input": "./input_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "dockerfile": "./Dockerfile"
+}

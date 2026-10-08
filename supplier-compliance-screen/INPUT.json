@@ -1,0 +1,7 @@
+{
+  "companies": ["Tyson Foods", "Blue Bell Creameries", "Johnson & Johnson"],
+  "companyStates": ["AR", "TX", "NJ"],
+  "sources": ["fda", "epa"],
+  "lookbackYears": 5,
+  "maxMatchesPerCompany": 10
+}

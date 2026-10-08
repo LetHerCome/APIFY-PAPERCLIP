@@ -1,0 +1,58 @@
+{
+  "title": "Supplier Compliance Screen input",
+  "description": "Screen up to three supplier names using public FDA and EPA records.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "companies": {
+      "title": "Companies",
+      "type": "array",
+      "description": "Company names to search (maximum 3 per run).",
+      "editor": "stringList",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "maxItems": 3
+    },
+    "state": {
+      "title": "State filter",
+      "type": "string",
+      "description": "Optional US state abbreviation used for the EPA ECHO search.",
+      "editor": "textfield",
+      "pattern": "^[A-Za-z]{2}$"
+    },
+    "companyStates": {
+      "title": "Company-specific state filters",
+      "type": "array",
+      "description": "Optional two-letter state list aligned by index with companies; overrides global state.",
+      "editor": "stringList",
+      "items": { "type": "string", "pattern": "^[A-Za-z]{2}$" },
+      "maxItems": 3
+    },
+    "sources": {
+      "title": "Sources",
+      "type": "array",
+      "description": "Public sources to query.",
+      "editor": "select",
+      "items": { "type": "string", "enum": ["fda", "epa"] },
+      "default": ["fda", "epa"],
+      "uniqueItems": true
+    },
+    "lookbackYears": {
+      "title": "Lookback years",
+      "type": "integer",
+      "description": "FDA records older than this many years are omitted. EPA results use EPA's current summary window.",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 5
+    },
+    "maxMatchesPerCompany": {
+      "title": "Maximum FDA matches per company",
+      "type": "integer",
+      "description": "Maximum FDA records across food, drug, and device enforcement endpoints.",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 10
+    }
+  },
+  "required": ["companies"]
+}
