@@ -1,5 +1,5 @@
 import { Actor } from 'apify';
-import { buildFdaSearchUrl, calculateRisk, matchesEpaFacility, normalizeInput } from './helpers.js';
+import { buildFdaSearchUrl, calculateRisk, matchesEpaFacility, normalizeInput, reportActorFailure } from './helpers.js';
 
 const FDA_TYPES = ['food', 'drug', 'device'];
 const EPA_URL = 'https://echodata.epa.gov/echo/echo_rest_services.get_facilities';
@@ -136,6 +136,5 @@ try {
     }
     await Actor.exit();
 } catch (error) {
-    Actor.log.error(error.message);
-    await Actor.fail(error.message);
+    await reportActorFailure(Actor, error);
 }

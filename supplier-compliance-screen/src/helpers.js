@@ -106,3 +106,8 @@ export function calculateRisk(fda, epa) {
     if (basis.length === 0) basis.push('No matching FDA records or EPA non-compliance/formal-action indicators in returned records');
     return { score: Math.min(100, score), basis };
 }
+
+export async function reportActorFailure(actor, error, logger = console) {
+    logger.error(error.message);
+    await actor.fail(error.message);
+}

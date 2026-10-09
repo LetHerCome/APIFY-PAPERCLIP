@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFdaSearchUrl, calculateRisk, cleanCompany, escapeOpenFda, matchesEpaFacility, normalizeInput, uniqueCompanies } from '../src/helpers.js';
+import { buildFdaSearchUrl, calculateRisk, cleanCompany, escapeOpenFda, matchesEpaFacility, normalizeInput, reportActorFailure, uniqueCompanies } from '../src/helpers.js';
 
 test('normalizes company whitespace and ignores non-string input', () => {
     assert.equal(cleanCompany('  Blue   Bell Creameries  '), 'Blue Bell Creameries');
@@ -40,6 +40,19 @@ test('company states stay aligned to the first original occurrence after dedupli
 test('invalid company count and lookback are rejected during input validation', () => {
     assert.throws(() => normalizeInput({ companies: ['A', 'B', 'C', 'D'] }), /between 1 and 3/);
     assert.throws(() => normalizeInput({ companies: ['Pfizer'], lookbackYears: 0 }), /lookbackYears/);
+});
+
+test('actor validation failures are logged before failing the run', async () => {
+    const events = [];
+    const actor = { fail: async (message) => events.push(['fail', message]) };
+    const logger = { error: (message) => events.push(['error', message]) };
+
+    await reportActorFailure(actor, new Error('lookbackYears must be an integer from 1 to 10.'), logger);
+
+    assert.deepEqual(events, [
+        ['error', 'lookbackYears must be an integer from 1 to 10.'],
+        ['fail', 'lookbackYears must be an integer from 1 to 10.'],
+    ]);
 });
 
 test('companyStates must align with original input companies', () => {
