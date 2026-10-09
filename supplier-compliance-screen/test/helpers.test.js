@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFdaSearchUrl, calculateRisk, cleanCompany, escapeOpenFda, matchesEpaFacility, uniqueCompanies } from '../src/helpers.js';
+import { buildFdaSearchUrl, calculateRisk, cleanCompany, escapeOpenFda, matchesEpaFacility, normalizeInput, uniqueCompanies } from '../src/helpers.js';
 
 test('normalizes company whitespace and ignores non-string input', () => {
     assert.equal(cleanCompany('  Blue   Bell Creameries  '), 'Blue Bell Creameries');
@@ -26,6 +26,27 @@ test('EPA match requires every distinctive company-name token', () => {
 
 test('company deduplication ignores case and repeated whitespace', () => {
     assert.deepEqual(uniqueCompanies(['Tyson Foods', ' tyson  foods ', 'Acme']), ['Tyson Foods', 'Acme']);
+});
+
+test('company states stay aligned to the first original occurrence after deduplication', () => {
+    const result = normalizeInput({
+        companies: ['Tyson Foods', 'tyson foods', 'Pfizer'],
+        companyStates: ['IA', 'MN', 'NY'],
+    });
+    assert.deepEqual(result.companies, ['Tyson Foods', 'Pfizer']);
+    assert.deepEqual(result.companyStates, ['IA', 'NY']);
+});
+
+test('invalid company count and lookback are rejected during input validation', () => {
+    assert.throws(() => normalizeInput({ companies: ['A', 'B', 'C', 'D'] }), /between 1 and 3/);
+    assert.throws(() => normalizeInput({ companies: ['Pfizer'], lookbackYears: 0 }), /lookbackYears/);
+});
+
+test('companyStates must align with original input companies', () => {
+    assert.throws(() => normalizeInput({
+        companies: ['Tyson Foods', 'tyson foods', 'Pfizer'],
+        companyStates: ['IA', 'NY'],
+    }), /one state for each input company/);
 });
 
 test('risk score is bounded and cites contributing record classes', () => {

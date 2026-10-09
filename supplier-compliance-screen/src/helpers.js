@@ -31,6 +31,44 @@ export function uniqueCompanies(values) {
     });
 }
 
+export function normalizeInput(input = {}) {
+    const rawCompanies = input.companies ?? [];
+    if (!Array.isArray(rawCompanies)) throw new Error('companies must be a list of company names.');
+
+    const companies = uniqueCompanies(rawCompanies);
+    if (companies.length < 1 || companies.length > 3) throw new Error('Provide between 1 and 3 non-empty company names.');
+
+    const state = input.state ? String(input.state).trim().toUpperCase() : '';
+    if (state && !/^[A-Z]{2}$/.test(state)) throw new Error('state must be a two-letter US state abbreviation.');
+
+    const rawCompanyStates = input.companyStates;
+    if (rawCompanyStates !== undefined && (!Array.isArray(rawCompanyStates) || rawCompanyStates.length !== rawCompanies.length)) {
+        throw new Error('companyStates must contain one state for each input company.');
+    }
+    const seen = new Set();
+    const companyStates = [];
+    rawCompanies.forEach((rawCompany, index) => {
+        const company = cleanCompany(rawCompany);
+        const key = company.toLocaleLowerCase('en-US');
+        if (!company || seen.has(key)) return;
+        seen.add(key);
+        const companyState = String(rawCompanyStates?.[index] || state).trim().toUpperCase();
+        if (companyState && !/^[A-Z]{2}$/.test(companyState)) throw new Error(`Invalid state for ${company}; use a two-letter abbreviation.`);
+        companyStates.push(companyState);
+    });
+
+    const sources = input.sources ?? ['fda', 'epa'];
+    if (!Array.isArray(sources) || sources.some((source) => !['fda', 'epa'].includes(source))) {
+        throw new Error('sources may contain only "fda" and "epa".');
+    }
+    const lookbackYears = Number(input.lookbackYears ?? 5);
+    const maxMatches = Number(input.maxMatchesPerCompany ?? 10);
+    if (!Number.isInteger(lookbackYears) || lookbackYears < 1 || lookbackYears > 10) throw new Error('lookbackYears must be an integer from 1 to 10.');
+    if (!Number.isInteger(maxMatches) || maxMatches < 1 || maxMatches > 10) throw new Error('maxMatchesPerCompany must be an integer from 1 to 10.');
+
+    return { companies, companyStates, sources, lookbackYears, maxMatches };
+}
+
 export function escapeOpenFda(value) {
     return value.replace(/[\\"()]/g, (character) => `\\${character}`);
 }

@@ -1,5 +1,5 @@
 import { Actor } from 'apify';
-import { buildFdaSearchUrl, calculateRisk, matchesEpaFacility, uniqueCompanies } from './helpers.js';
+import { buildFdaSearchUrl, calculateRisk, matchesEpaFacility, normalizeInput } from './helpers.js';
 
 const FDA_TYPES = ['food', 'drug', 'device'];
 const EPA_URL = 'https://echodata.epa.gov/echo/echo_rest_services.get_facilities';
@@ -110,26 +110,11 @@ async function getEpaFacilities(company, state, errors) {
 
 await Actor.init();
 try {
-    const input = await Actor.getInput() || {};
-    const companies = uniqueCompanies(input.companies || []);
-    if (companies.length < 1 || companies.length > 3) throw new Error('Provide between 1 and 3 non-empty company names.');
-    const sources = input.sources || ['fda', 'epa'];
-    if (!Array.isArray(sources) || sources.some((source) => !['fda', 'epa'].includes(source))) {
-        throw new Error('sources may contain only "fda" and "epa".');
-    }
-    const state = input.state ? String(input.state).trim().toUpperCase() : '';
-    if (state && !/^[A-Z]{2}$/.test(state)) throw new Error('state must be a two-letter US state abbreviation.');
-    const companyStates = input.companyStates || [];
-    if (!Array.isArray(companyStates) || companyStates.length > companies.length) throw new Error('companyStates must be a state list aligned with companies.');
-    const lookbackYears = Number(input.lookbackYears ?? 5);
-    const maxMatches = Number(input.maxMatchesPerCompany ?? 10);
-    if (!Number.isInteger(lookbackYears) || lookbackYears < 1 || lookbackYears > 10) throw new Error('lookbackYears must be an integer from 1 to 10.');
-    if (!Number.isInteger(maxMatches) || maxMatches < 1 || maxMatches > 10) throw new Error('maxMatchesPerCompany must be an integer from 1 to 10.');
+    const { companies, companyStates, sources, lookbackYears, maxMatches } = normalizeInput(await Actor.getInput() || {});
 
     for (const [index, company] of companies.entries()) {
         const errors = [];
-        const companyState = String(companyStates[index] || state).trim().toUpperCase();
-        if (companyState && !/^[A-Z]{2}$/.test(companyState)) throw new Error(`Invalid state for ${company}; use a two-letter abbreviation.`);
+        const companyState = companyStates[index];
         const fda = sources.includes('fda') ? await getFdaRecords(company, lookbackYears, maxMatches, errors) : [];
         await sleep(750);
         const epa = sources.includes('epa') ? await getEpaFacilities(company, companyState, errors) : [];
@@ -149,6 +134,8 @@ try {
         });
         await sleep(1000);
     }
-} finally {
     await Actor.exit();
+} catch (error) {
+    Actor.log.error(error.message);
+    await Actor.fail(error.message);
 }
